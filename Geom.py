@@ -130,6 +130,9 @@ class Point:
         return result
 
     def perp(self):
+        """
+        Note: this always returns the "clockwise facing" vector to a Point/vector
+        """
         return Point(self.y, -self.x)
 
     def dot(self, other):
@@ -144,9 +147,30 @@ class Point:
         """
         return self.x * other.y - self.y * other.x
 
+    def clockwise(self, other):
+        """
+        Returns true if other is clockwise of this point
+        """
+        if self.y * other.x > self.x * other.y:
+            return True
+        else:
+            return False
+
+
     def project(self, other):
         return self.dot(other) / other.lengthsq() * other
 
+    def angle(self):
+        if self.length() < 0.000000001:
+            return 0
+
+        if self.y >= 0:
+            return math.acos(self.x / self.length())
+        else:
+            return 2 * math.pi - math.acos(self.x / self.length())
+
+    def abs_angle_between(self, other):
+        return math.acos(self.dot(other) / (self.length() * other.length()))
 
 class Circle:
     def __init__(self, center_init, radius_init):
@@ -168,7 +192,7 @@ class Line:
         self.end = p2_init
 
     def length(self):
-        return (self.start).distance_to(self.end)
+        return self.start.distance_to(self.end)
 
     def midpoint(self):
         return self.start + ((self.end - self.start) / 2)
@@ -281,4 +305,3 @@ class Util:
             return line.start
         else:
             return line.end
-
