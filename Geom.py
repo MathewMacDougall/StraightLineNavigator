@@ -117,7 +117,7 @@ class Point:
         return Point(x, y)
 
     def rotate_about(self, p, theta):
-        """Rotate counter-clockwise around a point, by theta degrees.
+        """Rotate counter-clockwise around a point, by theta radians.
 
         Positive y goes *up,* as in traditional mathematics.
 
@@ -125,7 +125,7 @@ class Point:
         """
         result = self.clone()
         result.translate(-p.x, -p.y)
-        result.rotate(theta)
+        result = result.rotate(theta)
         result.translate(p.x, p.y)
         return result
 
@@ -171,6 +171,7 @@ class Point:
 
     def abs_angle_between(self, other):
         return math.acos(self.dot(other) / (self.length() * other.length()))
+        # return math.atan2(other.y - self.y, other.x - self.x)
 
 class Circle:
     def __init__(self, center_init, radius_init):
@@ -267,35 +268,27 @@ class Util:
         """
         Returns the point on the line closest to other_point
         """
-        # if line.length() < 0.000000001:
-        #     return line.start_
-        #
-        # lenseg = (line.end - line.start_).dot(other_point - line.start_) / (line.length())
-        # c = line.start_ + (line.end - line.start_).norm(lenseg)
-        #
-        # ac = (line.start_ - c).length()
-        # bc = (line.end - c).length()
-        # ab = line.length()
-        # in_range = (ac <= ab) and (bc <= ab)
-        #
-        # if in_range:
-        #     return c
-        #
-        # len_a = (c - line.start_).length()
-        # len_b = (c - line.end).length()
-        #
-        # if len_a < len_b:
-        #     return line.start_
-        #
-        # return line.end
+        if line.length() < 0.000000001:
+            return line.start
 
-        dist = Util.dist_point_to_line(other_point, line)
-        perp = (line.end - line.start).perp().norm(dist)
-        if Util.dist_point_to_line((other_point + perp), line) < Util.dist_point_to_line(other_point - perp, line):
-            # if Util.is_perp((), ())
-            return other_point + perp
-        else:
-            return other_point - perp
+        lenseg = (line.end - line.start).dot(other_point - line.start) / (line.length())
+        c = line.start + (line.end - line.start).norm(lenseg)
+
+        ac = (line.start - c).length()
+        bc = (line.end - c).length()
+        ab = line.length()
+        in_range = (ac <= ab) and (bc <= ab)
+
+        if in_range:
+            return c
+
+        len_a = (c - line.start).length()
+        len_b = (c - line.end).length()
+
+        if len_a < len_b:
+            return line.start
+
+        return line.end
 
     @staticmethod
     def get_closest_endpoint(line, point):
@@ -305,3 +298,58 @@ class Util:
             return line.start
         else:
             return line.end
+
+    #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    # Helpers for the straight line navigator 2.0
+    # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    @staticmethod
+    def get_circle_tangent_points(line_start, circle, buffer):
+        radius_angle = math.acos(circle.radius / (line_start - circle.origin).length())
+        p1 = (line_start - circle.origin).rotate(radius_angle).norm(circle.radius + buffer) + circle.origin
+        p2 = (line_start - circle.origin).rotate(-radius_angle).norm(circle.radius + buffer) + circle.origin
+        return [p1, p2]
+
+    @staticmethod
+    def get_rightmost_point(start, target, obstacles, buffer):
+        rightmost_point = None
+        for ob in obstacles:
+            tangent_points = Util.get_circle_tangent_points(target, ob, buffer)
+            t1 = tangent_points[0]
+            t2 = tangent_points[1]
+
+            if not (start - target).clockwise(t1 - target) and (
+                    rightmost_point is None or (t1 - target).abs_angle_between(start - target) > (
+                rightmost_point - target).abs_angle_between(start - target)):
+                rightmost_point = t1
+            if not (start - target).clockwise(t2 - target) and (
+                    rightmost_point is None or (t2 - target).abs_angle_between(start - target) > (
+                rightmost_point - target).abs_angle_between(start - target)):
+                rightmost_point = t2
+
+        assert rightmost_point is not None
+        return rightmost_point
+
+    @staticmethod
+    def get_leftmost_point(start, target, obstacles, buffer):
+        leftmost_point = None
+        for ob in obstacles:
+            tangent_points = Util.get_circle_tangent_points(target, ob, buffer)
+            t1 = tangent_points[0]
+            t2 = tangent_points[1]
+
+            if (start - target).clockwise(t1 - target) and (
+                    leftmost_point is None or (t1 - target).abs_angle_between(start - target) > (
+                leftmost_point - target).abs_angle_between(start - target)):
+                leftmost_point = t1
+            if (start - target).clockwise(t2 - target) and (
+                    leftmost_point is None or (t2 - target).abs_angle_between(start - target) > (
+                leftmost_point - target).abs_angle_between(start - target)):
+                leftmost_point = t2
+
+        assert leftmost_point is not None
+        return leftmost_point
+
+    # true if point is to the right of the line looking from start to end
+    @staticmethod
+    def point_is_to_right_of_line(start, end, point):
+        return (end.x - start.x) * (point.y - start.y) - (end.y - start.y) * (point.x - start.x) < 0
