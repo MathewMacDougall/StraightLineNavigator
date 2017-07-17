@@ -54,9 +54,6 @@ class Point:
         else:
             return Point(self.x * scalar / self.length(), self.y * scalar / self.length())
 
-    # def __neg__(self):
-    #     return Point(-self.x, -self.y)
-
     def __str__(self):
         return "(%s, %s)" % (self.x, self.y)
 
@@ -156,8 +153,10 @@ class Point:
         else:
             return False
 
-
     def project(self, other):
+        """
+        Returns the projection of this point onto other
+        """
         return self.dot(other) / other.lengthsq() * other
 
     def angle(self):
@@ -170,8 +169,11 @@ class Point:
             return 2 * math.pi - math.acos(self.x / self.length())
 
     def abs_angle_between(self, other):
+        """
+        Returns the absolute value of the angle between this and other in radians
+        0 <= pi radians
+        """
         return math.acos(self.dot(other) / (self.length() * other.length()))
-        # return math.atan2(other.y - self.y, other.x - self.x)
 
 class Circle:
     def __init__(self, center_init, radius_init):
@@ -205,7 +207,6 @@ class Line:
         Knowing the start_ and endpoint of the line we can get the equation of a line using:
         y - y1 = (y2 - y1) / (x2 - x1) * (x - x1)
         """
-
         a = self.start.y - self.end.y
         b = self.end.x - self.start.x
         c = (self.start.x - self.end.x) * self.start.y + self.start.x * (self.end.y - self.start.y)
@@ -213,17 +214,6 @@ class Line:
 
 
 class Util:
-    # @staticmethod
-    # def intersects(line, circle):
-    #     """
-    #     Returns true if the line intersects the circle at all
-    #     """
-    #     dist = Util.dist_point_to_line(circle.origin, line)
-    #     if dist <= circle.radius:
-    #         return True
-    #     else:
-    #         return False
-
     @staticmethod
     def intersects(line, point, radius):
         """
