@@ -378,36 +378,7 @@ class Util:
     @staticmethod
     def point_is_to_right_of_line(start, end, point):
         return (end.x - start.x) * (point.y - start.y) - (end.y - start.y) * (point.x - start.x) < 0
-
-    # @staticmethod
-    # def get_group_tangent_point(start, obstacles):
-    #     end = obstacles[0].origin
-    #     t1 = None
-    #     t2 = None
-    #     miss = False
-    #
-    #     ray = (end - start).norm(100)
-    #     rays = 1000
-    #     lastCollision = None
-    #     for i in range(rays):
-    #         collision = Util.get_first_collision(start, start + ray, obstacles)
-    #         if collision is None:
-    #             print("bla")
-    #         else:
-    #             print("foo")
-    #         if miss is False and collision is None:
-    #             t1 = start + ray.norm((lastCollision.origin - start).length())
-    #             miss = True
-    #
-    #         if miss is True and collision is not None:
-    #             t2 = start + ray.norm((collision.origin - start).length())
-    #             break
-    #
-    #         ray = ray.rotate(2 * math.pi / rays)
-    #         lastCollision = collision
-    #
-    #     return [t1, t2]
-
+    
     @staticmethod
     def get_group_tangent_point(start, obstacles):
         t1 = None
