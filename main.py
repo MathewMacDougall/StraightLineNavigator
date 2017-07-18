@@ -16,14 +16,30 @@ TOTAL_AVOID_DIST_WITH_BUFFER = TOTAL_AVOID_DIST + NEW_POINT_BUFFER
 
 ROBOT_AVOID_DIST = 2 * ROBOT_RADIUS + 0.1
 
-robots = [Circle(Point(0, 0), ROBOT_AVOID_DIST), Circle(Point(0, -0.2), ROBOT_AVOID_DIST), Circle(Point(-2, -0.0), ROBOT_AVOID_DIST),
-          Circle(Point(-2, -0.4), ROBOT_AVOID_DIST), Circle(Point(2, -0.2), ROBOT_AVOID_DIST),
+robots = [Circle(Point(0, 0), ROBOT_AVOID_DIST), Circle(Point(0, -0.3), ROBOT_AVOID_DIST), Circle(Point(-2, -0.0), ROBOT_AVOID_DIST),
+          Circle(Point(-2, -0.4), ROBOT_AVOID_DIST), Circle(Point(2, -0.2), ROBOT_AVOID_DIST), Circle(Point(0.2, 0.4), ROBOT_AVOID_DIST),
           Circle(Point(-2.7, -0.0), ROBOT_AVOID_DIST), Circle(Point(-2.7, -0.3), ROBOT_AVOID_DIST), Circle(Point(-2.7, 0.3), ROBOT_AVOID_DIST),
           Circle(Point(-3, -0.6), ROBOT_AVOID_DIST), Circle(Point(-3.4, -0.7), ROBOT_AVOID_DIST),
-          Circle(Point(-3.5, -0.2), ROBOT_AVOID_DIST)]
+          Circle(Point(-3.5, -0.2), ROBOT_AVOID_DIST), Circle(Point(-3.1, 0.55), ROBOT_AVOID_DIST)]
 
 start_ = Point(-3, 0)
 target_ = Point(3, 0)
+
+fig, ax = plt.subplots()
+ax.grid()
+
+# Plot the robots
+for r in robots[6:]:
+    ax.add_patch(plt.Circle((r.origin.x, r.origin.y), ROBOT_RADIUS, color="red"))
+    ax.add_patch(plt.Circle((r.origin.x, r.origin.y), r.radius, color="red", fill=False))
+
+tangents = Util.get_group_tangent_point(start_, robots[6:])
+for t in tangents:
+    plt.plot([t.x], [t.y], 'r*', lw=6)
+plt.plot([start_.x], [start_.y], 'g*', lw=6)
+plt.show()
+exit()
+
 
 # define the modes for the planning algorithm
 MODE_LEFT = "MODE_LEFT"
@@ -31,13 +47,17 @@ MODE_RIGHT = "MODE_RIGHT"
 MODE_BOTH = "MODE_BOTH"
 
 # THIS IS V2, the right left mode version
-def straight_line_planner(start, target, obstacles, mode):
-    first_collision = get_first_collision(start, target, obstacles)
+def straight_line_planner(start, target, obstacles, mode, maxDepth = 100):
+    print(maxDepth)
+    if maxDepth < 0:
+        return []
+
+    first_collision = Util.get_first_collision(start, target, obstacles)
     if first_collision is None:
         return [target]
 
     if mode is MODE_LEFT:
-        obstacle_group = get_group_of_points(first_collision, obstacles)
+        obstacle_group = Util.get_group_of_points(first_collision, obstacles)
         left_perp_point = None
         left_perp_point_dist = -1
 
@@ -55,12 +75,15 @@ def straight_line_planner(start, target, obstacles, mode):
                 left_perp_point_dist = dist
 
         assert left_perp_point is not None
-        plan = straight_line_planner(start, left_perp_point, obstacles, MODE_LEFT) + straight_line_planner(left_perp_point, target, obstacles, MODE_LEFT)
-        print(plan)
-        return plan
+        plan_first_part = straight_line_planner(start, left_perp_point, obstacles, MODE_LEFT)
+        plan_second_part = straight_line_planner(left_perp_point, target, obstacles, MODE_LEFT)
+        if len(plan_first_part) == 0 or len(plan_second_part) == 0:
+            return []
+        else:
+            return plan_first_part + plan_second_part
 
     elif mode is MODE_RIGHT:
-        obstacle_group = get_group_of_points(first_collision, obstacles)
+        obstacle_group = Util.get_group_of_points(first_collision, obstacles)
         right_perp_point = None
         right_perp_point_dist = -1
 
@@ -77,55 +100,40 @@ def straight_line_planner(start, target, obstacles, mode):
                 right_perp_point_dist = dist
 
         assert right_perp_point is not None
-        plan = straight_line_planner(start, right_perp_point, obstacles, MODE_RIGHT) + straight_line_planner(right_perp_point, target, obstacles, MODE_RIGHT)
-        print(plan)
-        return plan
+        plan_first_part = straight_line_planner(start, right_perp_point, obstacles, MODE_RIGHT)
+        plan_second_part = straight_line_planner(right_perp_point, target, obstacles, MODE_RIGHT)
+        if len(plan_first_part) == 0 or len(plan_second_part) == 0:
+            return []
+        else:
+            return plan_first_part + plan_second_part
 
     elif mode is MODE_BOTH:
         # All obstacles the path collides with. Can be 1 or more obstacles
-        obstacle_group = get_group_of_points(first_collision, obstacles)
+        obstacle_group = Util.get_group_of_points(first_collision, obstacles)
         left_point = Util.get_leftmost_point(start, target, obstacle_group, NEW_POINT_BUFFER)
         right_point = Util.get_rightmost_point(start, target, obstacle_group, NEW_POINT_BUFFER)
 
-        left_path = straight_line_planner(start, left_point, obstacles, MODE_LEFT) + straight_line_planner(left_point, target, obstacles, MODE_BOTH)
-        right_path = straight_line_planner(start, right_point, obstacles, MODE_RIGHT) + straight_line_planner(right_point, target, obstacles, MODE_BOTH)
-        plan = get_shortest_path(left_path, right_path)
-        print(plan)
+        left_path_first_part = straight_line_planner(start, left_point, obstacles, MODE_LEFT)
+        left_path_second_part = straight_line_planner(left_point, target, obstacles, MODE_BOTH)
+        right_path_first_part = straight_line_planner(start, right_point, obstacles, MODE_RIGHT)
+        right_path_second_part = straight_line_planner(right_point, target, obstacles, MODE_BOTH)
+
+        if (len(left_path_first_part) == 0 or len(left_path_second_part) == 0) and\
+           (len(right_path_first_part) > 0 and len(right_path_second_part) > 0):
+           plan = right_path_first_part + right_path_second_part
+        elif (len(left_path_first_part) > 0 and len(left_path_second_part) > 0) and\
+             (len(right_path_first_part) == 0 or len(right_path_second_part) == 0):
+            plan = left_path_first_part + left_path_second_part
+        elif (len(left_path_first_part) > 0 and len(left_path_second_part) > 0) and\
+             (len(right_path_first_part) > 0 and len(right_path_second_part) > 0):
+            plan = get_shortest_path(left_path_first_part + left_path_second_part, right_path_first_part + right_path_second_part)
+        else:
+            plan = []
+
+        # plan = left_path_first_part + left_path_second_part
         return plan
     else:
         assert False
-
-def get_group_of_points(obstacle, all_obstacles):
-    """
-    Returns obstacle and all obstacles it touches in a list
-    """
-    touching_obstacles = [obstacle]
-
-    while True:
-        to_add = []
-        for p in touching_obstacles:
-            for o in all_obstacles:
-                if p.origin.distance_to(o.origin) < p.radius + o.radius and o not in touching_obstacles:
-                    to_add.append(o)
-
-        touching_obstacles += to_add
-
-        if len(to_add) == 0:
-            break
-
-    return touching_obstacles
-
-def get_first_collision(start, end, obstacles):
-    """
-    Returns None if the path is not blocked, otherwise returns the closest obstacle that blocks it
-    """
-    closest_obstacle = None
-    for ob in obstacles:
-        if Util.intersects(Line(start, end), ob.origin, ob.radius):
-            if (closest_obstacle is None) or ((ob.origin - start).length() < (closest_obstacle.origin - start).length()):
-                closest_obstacle = ob
-
-    return closest_obstacle
 
 def get_path_with_fewest_segments(path1, path2):
     if len(path1) < len(path2):

@@ -339,7 +339,73 @@ class Util:
         assert leftmost_point is not None
         return leftmost_point
 
+    @staticmethod
+    def get_group_of_points(obstacle, all_obstacles):
+        """
+        Returns obstacle and all obstacles it touches in a list
+        """
+        touching_obstacles = [obstacle]
+
+        while True:
+            to_add = []
+            for p in touching_obstacles:
+                for o in all_obstacles:
+                    if p.origin.distance_to(o.origin) < p.radius + o.radius and o not in touching_obstacles:
+                        to_add.append(o)
+
+            touching_obstacles += to_add
+
+            if len(to_add) == 0:
+                break
+
+        return touching_obstacles
+
+    @staticmethod
+    def get_first_collision(start, end, obstacles):
+        """
+        Returns None if the path is not blocked, otherwise returns the closest obstacle that blocks it
+        """
+        closest_obstacle = None
+        for ob in obstacles:
+            if Util.intersects(Line(start, end), ob.origin, ob.radius):
+                if (closest_obstacle is None) or (
+                    (ob.origin - start).length() < (closest_obstacle.origin - start).length()):
+                    closest_obstacle = ob
+
+        return closest_obstacle
+
     # true if point is to the right of the line looking from start to end
     @staticmethod
     def point_is_to_right_of_line(start, end, point):
         return (end.x - start.x) * (point.y - start.y) - (end.y - start.y) * (point.x - start.x) < 0
+
+    @staticmethod
+    def get_group_tangent_point(start, obstacles):
+        end = obstacles[0].origin
+        t1 = None
+        t2 = None
+        miss = False
+
+        ray = (end - start).norm(100)
+        rays = 300
+        lastCollision = None
+        for i in range(rays):
+            collision = Util.get_first_collision(start, start + ray, obstacles)
+            if collision is None:
+                print("bla")
+            else:
+                print("foo")
+            if miss is False and collision is None:
+                t1 = start + ray.norm((lastCollision.origin - start).length())
+                miss = True
+
+            if miss is True and collision is not None:
+                t2 = start + ray.norm((collision.origin - start).length())
+                break
+
+            ray = ray.rotate(2 * math.pi / rays)
+            lastCollision = collision
+
+        return [t1, t2]
+
+
