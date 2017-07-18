@@ -20,25 +20,32 @@ robots = [Circle(Point(0, 0), ROBOT_AVOID_DIST), Circle(Point(0, -0.3), ROBOT_AV
           Circle(Point(-2, -0.4), ROBOT_AVOID_DIST), Circle(Point(2, -0.2), ROBOT_AVOID_DIST), Circle(Point(0.2, 0.4), ROBOT_AVOID_DIST),
           Circle(Point(-2.7, -0.0), ROBOT_AVOID_DIST), Circle(Point(-2.7, -0.3), ROBOT_AVOID_DIST), Circle(Point(-2.7, 0.3), ROBOT_AVOID_DIST),
           Circle(Point(-3, -0.6), ROBOT_AVOID_DIST), Circle(Point(-3.4, -0.7), ROBOT_AVOID_DIST),
-          Circle(Point(-3.5, -0.2), ROBOT_AVOID_DIST), Circle(Point(-3.1, 0.55), ROBOT_AVOID_DIST)]
+          Circle(Point(-3.9, -0.7), ROBOT_AVOID_DIST), Circle(Point(-4.3, -0.7), ROBOT_AVOID_DIST),
+          Circle(Point(-3.1, 0.55), ROBOT_AVOID_DIST)]
 
 start_ = Point(-3, 0)
 target_ = Point(3, 0)
 
-fig, ax = plt.subplots()
-ax.grid()
-
-# Plot the robots
-for r in robots[6:]:
-    ax.add_patch(plt.Circle((r.origin.x, r.origin.y), ROBOT_RADIUS, color="red"))
-    ax.add_patch(plt.Circle((r.origin.x, r.origin.y), r.radius, color="red", fill=False))
-
-tangents = Util.get_group_tangent_point(start_, robots[6:])
-for t in tangents:
-    plt.plot([t.x], [t.y], 'r*', lw=6)
-plt.plot([start_.x], [start_.y], 'g*', lw=6)
-plt.show()
-exit()
+# fig, ax = plt.subplots()
+# ax.grid()
+#
+# # Plot the robots
+# for r in robots[6:]:
+#     ax.add_patch(plt.Circle((r.origin.x, r.origin.y), ROBOT_RADIUS, color="red"))
+#     ax.add_patch(plt.Circle((r.origin.x, r.origin.y), r.radius, color="red", fill=False))
+#
+# tangents = Util.get_group_tangent_point(start_, robots[6:])
+# plt.plot([tangents[0].x], [tangents[0].y], 'r*', lw=6)
+# plt.plot([tangents[1].x], [tangents[1].y], 'b*', lw=6)
+#
+# left_point_target = Util.get_leftmost_point(start_, target_, robots[6:], NEW_POINT_BUFFER)
+# right_point_target = Util.get_rightmost_point(start_, target_, robots[6:], NEW_POINT_BUFFER)
+# plt.plot([left_point_target.x], [left_point_target.y], 'r*', lw=6)
+# plt.plot([right_point_target.x], [right_point_target.y], 'b*', lw=6)
+#
+# plt.plot([start_.x], [start_.y], 'g*', lw=6)
+# plt.show()
+# exit()
 
 
 # define the modes for the planning algorithm
@@ -48,7 +55,7 @@ MODE_BOTH = "MODE_BOTH"
 
 # THIS IS V2, the right left mode version
 def straight_line_planner(start, target, obstacles, mode, maxDepth = 100):
-    print(maxDepth)
+    # print(maxDepth)
     if maxDepth < 0:
         return []
 
@@ -56,6 +63,7 @@ def straight_line_planner(start, target, obstacles, mode, maxDepth = 100):
     if first_collision is None:
         return [target]
 
+    # in MODE_RIGHT the planner with try go to the left (relative to the start -> target line aka counterclockwise) to avoid obstacles
     if mode is MODE_LEFT:
         obstacle_group = Util.get_group_of_points(first_collision, obstacles)
         left_perp_point = None
@@ -82,6 +90,7 @@ def straight_line_planner(start, target, obstacles, mode, maxDepth = 100):
         else:
             return plan_first_part + plan_second_part
 
+    # in MODE_RIGHT the planner with try go to the right (relative to the start -> target line aka clockwise) to avoid obstacles
     elif mode is MODE_RIGHT:
         obstacle_group = Util.get_group_of_points(first_collision, obstacles)
         right_perp_point = None
@@ -107,31 +116,39 @@ def straight_line_planner(start, target, obstacles, mode, maxDepth = 100):
         else:
             return plan_first_part + plan_second_part
 
+    # in MODE_BOTH, if an obstacle is encountered the planner with check paths that go around it both to the right
+    # and left, and returning the best one
     elif mode is MODE_BOTH:
         # All obstacles the path collides with. Can be 1 or more obstacles
         obstacle_group = Util.get_group_of_points(first_collision, obstacles)
-        left_point = Util.get_leftmost_point(start, target, obstacle_group, NEW_POINT_BUFFER)
-        right_point = Util.get_rightmost_point(start, target, obstacle_group, NEW_POINT_BUFFER)
+        left_point_target = Util.get_leftmost_point(start, target, obstacle_group, NEW_POINT_BUFFER)
+        right_point_target = Util.get_rightmost_point(start, target, obstacle_group, NEW_POINT_BUFFER)
+        left_point_start = Util.get_group_tangent_point(start, obstacle_group)[0]
+        right_point_start = Util.get_group_tangent_point(start, obstacle_group)[1]
 
-        left_path_first_part = straight_line_planner(start, left_point, obstacles, MODE_LEFT)
-        left_path_second_part = straight_line_planner(left_point, target, obstacles, MODE_BOTH)
-        right_path_first_part = straight_line_planner(start, right_point, obstacles, MODE_RIGHT)
-        right_path_second_part = straight_line_planner(right_point, target, obstacles, MODE_BOTH)
+        left_path_1 = straight_line_planner(start, left_point_start, obstacles, MODE_RIGHT)
+        left_path_2 = straight_line_planner(left_point_start, left_point_target, obstacles, MODE_RIGHT)
+        left_path_3 = straight_line_planner(left_point_target, target, obstacles, MODE_BOTH)
+        right_path_1 = straight_line_planner(start, right_point_start, obstacles, MODE_LEFT)
+        right_path_2 = straight_line_planner(right_point_start, target, obstacles, MODE_LEFT)
+        right_path_3 = straight_line_planner(right_point_target, target, obstacles, MODE_BOTH)
 
-        if (len(left_path_first_part) == 0 or len(left_path_second_part) == 0) and\
-           (len(right_path_first_part) > 0 and len(right_path_second_part) > 0):
-           plan = right_path_first_part + right_path_second_part
-        elif (len(left_path_first_part) > 0 and len(left_path_second_part) > 0) and\
-             (len(right_path_first_part) == 0 or len(right_path_second_part) == 0):
-            plan = left_path_first_part + left_path_second_part
-        elif (len(left_path_first_part) > 0 and len(left_path_second_part) > 0) and\
-             (len(right_path_first_part) > 0 and len(right_path_second_part) > 0):
-            plan = get_shortest_path(left_path_first_part + left_path_second_part, right_path_first_part + right_path_second_part)
+        if len(left_path_1) == 0 or len(left_path_2) == 0 or len(left_path_3) == 0:
+            if len(right_path_1) == 0 or len(right_path_2) == 0 or len(right_path_3) == 0:
+                # neither direction is valid
+                return []
+            else:
+                # only the right path is valid so use it
+                return right_path_1 + right_path_2 + right_path_3
         else:
-            plan = []
+            if len(right_path_1) == 0 or len(right_path_2) == 0 or len(right_path_3) == 0:
+                # only the left path is valid so use it
+                return left_path_1 + left_path_2 + left_path_3
+            else:
+                # both left and right paths are valid so pick the shortest one
+                return get_shortest_path(left_path_1 + left_path_2 + left_path_3, right_path_1 + right_path_2 + right_path_3)
+                # return get_path_with_fewest_segments(left_path_1 + left_path_2 + left_path_3, right_path_1 + right_path_2 + right_path_3)
 
-        # plan = left_path_first_part + left_path_second_part
-        return plan
     else:
         assert False
 
@@ -144,6 +161,7 @@ def get_path_with_fewest_segments(path1, path2):
         return get_shortest_path(path1, path2)
 
 def get_shortest_path(path1, path2):
+    print("dist left: {}     dist right: {}".format(get_dist(path1), get_dist(path2)))
     if get_dist(path1) < get_dist(path2):
         return path1
     return path2

@@ -301,26 +301,6 @@ class Util:
 
     @staticmethod
     def get_rightmost_point(start, target, obstacles, buffer):
-        rightmost_point = None
-        for ob in obstacles:
-            tangent_points = Util.get_circle_tangent_points(target, ob, buffer)
-            t1 = tangent_points[0]
-            t2 = tangent_points[1]
-
-            if not (start - target).clockwise(t1 - target) and (
-                    rightmost_point is None or (t1 - target).abs_angle_between(start - target) > (
-                rightmost_point - target).abs_angle_between(start - target)):
-                rightmost_point = t1
-            if not (start - target).clockwise(t2 - target) and (
-                    rightmost_point is None or (t2 - target).abs_angle_between(start - target) > (
-                rightmost_point - target).abs_angle_between(start - target)):
-                rightmost_point = t2
-
-        assert rightmost_point is not None
-        return rightmost_point
-
-    @staticmethod
-    def get_leftmost_point(start, target, obstacles, buffer):
         leftmost_point = None
         for ob in obstacles:
             tangent_points = Util.get_circle_tangent_points(target, ob, buffer)
@@ -328,16 +308,36 @@ class Util:
             t2 = tangent_points[1]
 
             if (start - target).clockwise(t1 - target) and (
-                    leftmost_point is None or (t1 - target).abs_angle_between(start - target) > (
-                leftmost_point - target).abs_angle_between(start - target)):
+                            leftmost_point is None or (t1 - target).abs_angle_between(start - target) > (
+                                leftmost_point - target).abs_angle_between(start - target)):
                 leftmost_point = t1
             if (start - target).clockwise(t2 - target) and (
-                    leftmost_point is None or (t2 - target).abs_angle_between(start - target) > (
-                leftmost_point - target).abs_angle_between(start - target)):
+                            leftmost_point is None or (t2 - target).abs_angle_between(start - target) > (
+                                leftmost_point - target).abs_angle_between(start - target)):
                 leftmost_point = t2
 
         assert leftmost_point is not None
         return leftmost_point
+
+    @staticmethod
+    def get_leftmost_point(start, target, obstacles, buffer):
+        rightmost_point = None
+        for ob in obstacles:
+            tangent_points = Util.get_circle_tangent_points(target, ob, buffer)
+            t1 = tangent_points[0]
+            t2 = tangent_points[1]
+
+            if not (start - target).clockwise(t1 - target) and (
+                            rightmost_point is None or (t1 - target).abs_angle_between(start - target) > (
+                                rightmost_point - target).abs_angle_between(start - target)):
+                rightmost_point = t1
+            if not (start - target).clockwise(t2 - target) and (
+                            rightmost_point is None or (t2 - target).abs_angle_between(start - target) > (
+                                rightmost_point - target).abs_angle_between(start - target)):
+                rightmost_point = t2
+
+        assert rightmost_point is not None
+        return rightmost_point
 
     @staticmethod
     def get_group_of_points(obstacle, all_obstacles):
@@ -379,33 +379,55 @@ class Util:
     def point_is_to_right_of_line(start, end, point):
         return (end.x - start.x) * (point.y - start.y) - (end.y - start.y) * (point.x - start.x) < 0
 
+    # @staticmethod
+    # def get_group_tangent_point(start, obstacles):
+    #     end = obstacles[0].origin
+    #     t1 = None
+    #     t2 = None
+    #     miss = False
+    #
+    #     ray = (end - start).norm(100)
+    #     rays = 1000
+    #     lastCollision = None
+    #     for i in range(rays):
+    #         collision = Util.get_first_collision(start, start + ray, obstacles)
+    #         if collision is None:
+    #             print("bla")
+    #         else:
+    #             print("foo")
+    #         if miss is False and collision is None:
+    #             t1 = start + ray.norm((lastCollision.origin - start).length())
+    #             miss = True
+    #
+    #         if miss is True and collision is not None:
+    #             t2 = start + ray.norm((collision.origin - start).length())
+    #             break
+    #
+    #         ray = ray.rotate(2 * math.pi / rays)
+    #         lastCollision = collision
+    #
+    #     return [t1, t2]
+
     @staticmethod
     def get_group_tangent_point(start, obstacles):
-        end = obstacles[0].origin
         t1 = None
+        c1 = None
         t2 = None
-        miss = False
+        c2 = None
+        for p in obstacles:
+            for t in Util.get_circle_tangent_points(start, p, 0.02):
+                collision = Util.get_first_collision(start, start + (t-start).norm(100), obstacles)
+                if t1 is None and collision is None:
+                    t1 = t
+                    c1 = p
+                if t1 is not None and collision is None:
+                    t2 = t
+                    c2 = p
+                    break
 
-        ray = (end - start).norm(100)
-        rays = 300
-        lastCollision = None
-        for i in range(rays):
-            collision = Util.get_first_collision(start, start + ray, obstacles)
-            if collision is None:
-                print("bla")
-            else:
-                print("foo")
-            if miss is False and collision is None:
-                t1 = start + ray.norm((lastCollision.origin - start).length())
-                miss = True
-
-            if miss is True and collision is not None:
-                t2 = start + ray.norm((collision.origin - start).length())
-                break
-
-            ray = ray.rotate(2 * math.pi / rays)
-            lastCollision = collision
-
-        return [t1, t2]
-
-
+        # figure out which is the left and right tangents for the group
+        # return [left, right]
+        if not (start - c1.origin).clockwise(t1 - c1.origin):
+            return [t1, t2]
+        else:
+            return [t2, t1]
