@@ -12,19 +12,23 @@ ROBOT_RADIUS = 0.09
 NEW_POINT_BUFFER = 0.02
 ROBOT_AVOID_DIST = 2 * ROBOT_RADIUS + 0.1
 
-robots = [Circle(Point(0, 0), ROBOT_AVOID_DIST * 3), Circle(Point(0, -0.3), ROBOT_AVOID_DIST), Circle(Point(-2, -0.0), ROBOT_AVOID_DIST),
-          Circle(Point(-2, 1.0), ROBOT_AVOID_DIST * 2), Circle(Point(2, -0.2), ROBOT_AVOID_DIST), Circle(Point(0.2, 0.8), ROBOT_AVOID_DIST),
-          Circle(Point(-2.7, -0.0), ROBOT_AVOID_DIST), Circle(Point(-2.7, -0.3), ROBOT_AVOID_DIST), Circle(Point(-2.7, 0.3), ROBOT_AVOID_DIST),
-          Circle(Point(-3, -0.6), ROBOT_AVOID_DIST), Circle(Point(-3.4, -0.7), ROBOT_AVOID_DIST),
-          Circle(Point(-3.5, -0.2), ROBOT_AVOID_DIST), Circle(Point(-3.1, 0.55), ROBOT_AVOID_DIST)]
+# robots = [Circle(Point(0, 0), ROBOT_AVOID_DIST * 3), Circle(Point(0, -0.3), ROBOT_AVOID_DIST), Circle(Point(-2, -0.0), ROBOT_AVOID_DIST),
+#           Circle(Point(-2, 1.0), ROBOT_AVOID_DIST * 2), Circle(Point(2, -0.2), ROBOT_AVOID_DIST), Circle(Point(0.2, 0.8), ROBOT_AVOID_DIST),
+#           Circle(Point(-2.7, -0.0), ROBOT_AVOID_DIST), Circle(Point(-2.7, -0.3), ROBOT_AVOID_DIST), Circle(Point(-2.7, 0.3), ROBOT_AVOID_DIST),
+#           Circle(Point(-3, -0.6), ROBOT_AVOID_DIST), Circle(Point(-3.4, -0.7), ROBOT_AVOID_DIST),
+#           Circle(Point(-3.5, -0.2), ROBOT_AVOID_DIST), Circle(Point(-3.1, 0.55), ROBOT_AVOID_DIST)]
+
+robots = [Circle(Point(-2.5, 0), ROBOT_AVOID_DIST), Circle(Point(-2.5, 1.5), ROBOT_AVOID_DIST * 4.5), Circle(Point(-2.5, -0.3), ROBOT_AVOID_DIST),
+          Circle(Point(0, -1.1), ROBOT_AVOID_DIST * 4.5)]
 
 start_ = Point(-3, 0)
-target_ = Point(3, 0)
+target_ = Point(3, 1)
 
 # define the modes for the planning algorithm
 MODE_LEFT = "MODE_LEFT"
 MODE_RIGHT = "MODE_RIGHT"
 MODE_BOTH = "MODE_BOTH"
+MODE_CLOSEST_SIDE = "MODE_CLOSEST_SIDE"
 DIST = "OPTIMIZE_DIST"
 SEG = "OPTIMIZE_SEG"
 
@@ -95,16 +99,18 @@ def straight_line_planner(start, target, obstacles, mode, maxDepth = 100, optimi
     elif mode is MODE_BOTH:
         # All obstacles the path collides with. Can be 1 or more obstacles
         obstacle_group = Util.get_group_of_points(first_collision, obstacles)
-        left_point_target = Util.get_leftmost_point(start, target, obstacle_group, NEW_POINT_BUFFER)
-        right_point_target = Util.get_rightmost_point(start, target, obstacle_group, NEW_POINT_BUFFER)
-        left_point_start = Util.get_group_tangent_point(start, obstacle_group)[0]
-        right_point_start = Util.get_group_tangent_point(start, obstacle_group)[1]
+        # left_point_target = Util.get_leftmost_point(start, target, obstacle_group, NEW_POINT_BUFFER)
+        # right_point_target = Util.get_rightmost_point(start, target, obstacle_group, NEW_POINT_BUFFER)
+        left_point_start = Util.get_group_tangent_point(start, obstacle_group, NEW_POINT_BUFFER)[0]
+        right_point_start = Util.get_group_tangent_point(start, obstacle_group, NEW_POINT_BUFFER)[1]
+        left_point_target = Util.get_group_tangent_point(target, obstacle_group, NEW_POINT_BUFFER)[1]
+        right_point_target = Util.get_group_tangent_point(target, obstacle_group, NEW_POINT_BUFFER)[0]
 
-        left_path_1 = straight_line_planner(start, left_point_start, obstacles, MODE_RIGHT, maxDepth - 1)
-        left_path_2 = straight_line_planner(left_point_start, left_point_target, obstacles, MODE_RIGHT, maxDepth - 1)
+        left_path_1 = straight_line_planner(start, left_point_start, obstacles, MODE_BOTH, maxDepth - 1)
+        left_path_2 = straight_line_planner(left_point_start, left_point_target, obstacles, MODE_LEFT, maxDepth - 1)
         left_path_3 = straight_line_planner(left_point_target, target, obstacles, MODE_BOTH, maxDepth - 1)
-        right_path_1 = straight_line_planner(start, right_point_start, obstacles, MODE_LEFT, maxDepth - 1)
-        right_path_2 = straight_line_planner(right_point_start, right_point_target, obstacles, MODE_LEFT, maxDepth - 1)
+        right_path_1 = straight_line_planner(start, right_point_start, obstacles, MODE_BOTH, maxDepth - 1)
+        right_path_2 = straight_line_planner(right_point_start, right_point_target, obstacles, MODE_RIGHT, maxDepth - 1)
         right_path_3 = straight_line_planner(right_point_target, target, obstacles, MODE_BOTH, maxDepth - 1)
 
         if len(left_path_1) == 0 or len(left_path_2) == 0 or len(left_path_3) == 0:

@@ -294,6 +294,10 @@ class Util:
     # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     @staticmethod
     def get_circle_tangent_points(line_start, circle, buffer):
+        """
+        Returns the points on the circle (plus a dist of buffer) that create tangent lines with line_start
+        Returns points [left, right] from the perspective of line_start -> circle
+        """
         radius_angle = math.acos(circle.radius / (line_start - circle.origin).length())
         p1 = (line_start - circle.origin).rotate(radius_angle).norm(circle.radius + buffer) + circle.origin
         p2 = (line_start - circle.origin).rotate(-radius_angle).norm(circle.radius + buffer) + circle.origin
@@ -363,42 +367,48 @@ class Util:
     @staticmethod
     def get_first_collision(start, end, obstacles):
         """
-        Returns None if the path is not blocked, otherwise returns the closest obstacle that blocks it
+        Returns None if the path is not blocked, otherwise returns the closest/first obstacle that blocks it
         """
         closest_obstacle = None
         for ob in obstacles:
             if Util.intersects(Line(start, end), ob.origin, ob.radius):
                 if (closest_obstacle is None) or (
-                    (ob.origin - start).length() < (closest_obstacle.origin - start).length()):
+                        (ob.origin - start).length() < (closest_obstacle.origin - start).length()):
                     closest_obstacle = ob
 
         return closest_obstacle
 
-    # true if point is to the right of the line looking from start to end
     @staticmethod
     def point_is_to_right_of_line(start, end, point):
+        """
+        Returns true if the point is to the right of the line defined as start->end.
+        To the right of the line means to the right looking from the perspective of start -> end
+        """
         return (end.x - start.x) * (point.y - start.y) - (end.y - start.y) * (point.x - start.x) < 0
-    
+
     @staticmethod
-    def get_group_tangent_point(start, obstacles):
+    def get_group_tangent_point(start, obstacles, buffer):
+        """
+        Returns the points that form tangent lines from start -> obstacles
+        Returns [left tangent, right tangent], where left and right are defined from the perspective of the start
+        looking towards the obstacle
+        """
         t1 = None
         c1 = None
         t2 = None
-        c2 = None
         for p in obstacles:
-            for t in Util.get_circle_tangent_points(start, p, 0.02):
+            for t in Util.get_circle_tangent_points(start, p, buffer):
                 collision = Util.get_first_collision(start, start + (t-start).norm(100), obstacles)
                 if t1 is None and collision is None:
                     t1 = t
                     c1 = p
                 if t1 is not None and collision is None:
                     t2 = t
-                    c2 = p
                     break
 
         # figure out which is the left and right tangents for the group
         # return [left, right]
-        if not (start - c1.origin).clockwise(t1 - c1.origin):
+        if (start - c1.origin).clockwise(t1 - c1.origin):
             return [t1, t2]
         else:
             return [t2, t1]
