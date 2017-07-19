@@ -133,9 +133,10 @@ def straight_line_planner(start, target, obstacles, mode, maxDepth, optimize):
             else:
                 # both left and right paths are valid so pick the shortest one
                 if optimize is SEG:
-                    return get_path_with_fewest_segments(left_path_1 + left_path_2 + left_path_3, right_path_1 + right_path_2 + right_path_3)
+                    return get_path_with_fewest_segments([start] + left_path_1 + left_path_2 + left_path_3, [start] + right_path_1 + right_path_2 + right_path_3)
                 else:
-                    return get_shortest_path(left_path_1 + left_path_2 + left_path_3, right_path_1 + right_path_2 + right_path_3)
+                    # When comparing two paths for the shortest one the start point MUST be included
+                    return get_shortest_path([start] + left_path_1 + left_path_2 + left_path_3, [start] + right_path_1 + right_path_2 + right_path_3)
 
     elif mode is MODE_CLOSEST_SIDE:
         closest_point = Util.closest_point_on_line(Line(start, target), first_collision.origin)
@@ -172,7 +173,7 @@ def get_dist(path):
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Plotting and visualization
-# Plots the robots and their avoid distacnes (as outlines) on the field, the start and endpoints, and the path
+# Plots the robots and their avoid distances (as outlines) on the field, the start and endpoints, and the path
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 fig, ax = plt.subplots()
@@ -209,7 +210,7 @@ path_fewest_segments = []
 
 try:
     path_shortest_dist = [start_] + straight_line_planner(start_, target_, robots, MODE_BOTH, 20, DIST)
-    path_fewest_segments = [start_] + straight_line_planner(start_, target_, robots, MODE_BOTH, 20, SEG)
+    path_fewest_segments = [start_] #+ straight_line_planner(start_, target_, robots, MODE_BOTH, 20, SEG)
 
     if path_shortest_dist == [start_] or path_fewest_segments == [start_]:
         print("The straight line planner reached its max recursive depth and has failed to plan a full path")
