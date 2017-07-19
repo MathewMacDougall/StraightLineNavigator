@@ -175,6 +175,7 @@ class Point:
         """
         return math.acos(self.dot(other) / (self.length() * other.length()))
 
+
 class Circle:
     def __init__(self, center_init, radius_init):
         self.origin = center_init
@@ -188,6 +189,7 @@ class Circle:
 
     def area(self):
         return math.pi * (self.radius ** 2)
+
 
 class Line:
     def __init__(self, p1_init, p2_init):
@@ -304,46 +306,6 @@ class Util:
         return [p1, p2]
 
     @staticmethod
-    def get_rightmost_point(start, target, obstacles, buffer):
-        leftmost_point = None
-        for ob in obstacles:
-            tangent_points = Util.get_circle_tangent_points(target, ob, buffer)
-            t1 = tangent_points[0]
-            t2 = tangent_points[1]
-
-            if (start - target).clockwise(t1 - target) and (
-                            leftmost_point is None or (t1 - target).abs_angle_between(start - target) > (
-                                leftmost_point - target).abs_angle_between(start - target)):
-                leftmost_point = t1
-            if (start - target).clockwise(t2 - target) and (
-                            leftmost_point is None or (t2 - target).abs_angle_between(start - target) > (
-                                leftmost_point - target).abs_angle_between(start - target)):
-                leftmost_point = t2
-
-        assert leftmost_point is not None
-        return leftmost_point
-
-    @staticmethod
-    def get_leftmost_point(start, target, obstacles, buffer):
-        rightmost_point = None
-        for ob in obstacles:
-            tangent_points = Util.get_circle_tangent_points(target, ob, buffer)
-            t1 = tangent_points[0]
-            t2 = tangent_points[1]
-
-            if not (start - target).clockwise(t1 - target) and (
-                            rightmost_point is None or (t1 - target).abs_angle_between(start - target) > (
-                                rightmost_point - target).abs_angle_between(start - target)):
-                rightmost_point = t1
-            if not (start - target).clockwise(t2 - target) and (
-                            rightmost_point is None or (t2 - target).abs_angle_between(start - target) > (
-                                rightmost_point - target).abs_angle_between(start - target)):
-                rightmost_point = t2
-
-        assert rightmost_point is not None
-        return rightmost_point
-
-    @staticmethod
     def get_group_of_points(obstacle, all_obstacles):
         """
         Returns obstacle and all obstacles it touches in a list
@@ -387,7 +349,7 @@ class Util:
         return (end.x - start.x) * (point.y - start.y) - (end.y - start.y) * (point.x - start.x) < 0
 
     @staticmethod
-    def get_group_tangent_point(start, obstacles, buffer):
+    def get_group_tangent_points(start, obstacles, buffer):
         """
         Returns the points that form tangent lines from start -> obstacles
         Returns [left tangent, right tangent], where left and right are defined from the perspective of the start
