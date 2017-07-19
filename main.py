@@ -33,7 +33,7 @@ DIST = "OPTIMIZE_DIST"
 SEG = "OPTIMIZE_SEG"
 
 # THIS IS V2, the right left mode version
-def straight_line_planner(start, target, obstacles, mode, maxDepth = 100, optimize = DIST):
+def straight_line_planner(start, target, obstacles, mode, maxDepth, optimize):
     if maxDepth < 0:
         return []
 
@@ -61,8 +61,8 @@ def straight_line_planner(start, target, obstacles, mode, maxDepth = 100, optimi
                 left_perp_point_dist = dist
 
         assert left_perp_point is not None
-        plan_first_part = straight_line_planner(start, left_perp_point, obstacles, MODE_LEFT, maxDepth - 1)
-        plan_second_part = straight_line_planner(left_perp_point, target, obstacles, MODE_LEFT, maxDepth - 1)
+        plan_first_part = straight_line_planner(start, left_perp_point, obstacles, MODE_LEFT, maxDepth - 1, optimize)
+        plan_second_part = straight_line_planner(left_perp_point, target, obstacles, MODE_LEFT, maxDepth - 1, optimize)
         if len(plan_first_part) == 0 or len(plan_second_part) == 0:
             return []
         else:
@@ -87,8 +87,8 @@ def straight_line_planner(start, target, obstacles, mode, maxDepth = 100, optimi
                 right_perp_point_dist = dist
 
         assert right_perp_point is not None
-        plan_first_part = straight_line_planner(start, right_perp_point, obstacles, MODE_RIGHT, maxDepth - 1)
-        plan_second_part = straight_line_planner(right_perp_point, target, obstacles, MODE_RIGHT, maxDepth - 1)
+        plan_first_part = straight_line_planner(start, right_perp_point, obstacles, MODE_RIGHT, maxDepth - 1, optimize)
+        plan_second_part = straight_line_planner(right_perp_point, target, obstacles, MODE_RIGHT, maxDepth - 1, optimize)
         if len(plan_first_part) == 0 or len(plan_second_part) == 0:
             return []
         else:
@@ -106,12 +106,21 @@ def straight_line_planner(start, target, obstacles, mode, maxDepth = 100, optimi
         left_point_target = Util.get_group_tangent_point(target, obstacle_group, NEW_POINT_BUFFER)[1]
         right_point_target = Util.get_group_tangent_point(target, obstacle_group, NEW_POINT_BUFFER)[0]
 
-        left_path_1 = straight_line_planner(start, left_point_start, obstacles, MODE_BOTH, maxDepth - 1)
-        left_path_2 = straight_line_planner(left_point_start, left_point_target, obstacles, MODE_LEFT, maxDepth - 1)
-        left_path_3 = straight_line_planner(left_point_target, target, obstacles, MODE_BOTH, maxDepth - 1)
-        right_path_1 = straight_line_planner(start, right_point_start, obstacles, MODE_BOTH, maxDepth - 1)
-        right_path_2 = straight_line_planner(right_point_start, right_point_target, obstacles, MODE_RIGHT, maxDepth - 1)
-        right_path_3 = straight_line_planner(right_point_target, target, obstacles, MODE_BOTH, maxDepth - 1)
+        test_collision_left = Util.get_first_collision(start, left_point_start, obstacles)
+        if test_collision_left is not None and test_collision_left not in obstacle_group:
+            left_path_1 = straight_line_planner(start, left_point_start, obstacles, MODE_CLOSEST_SIDE, maxDepth - 1, optimize)
+        else:
+            left_path_1 = straight_line_planner(start, left_point_start, obstacles, MODE_BOTH, maxDepth - 1, optimize)
+        left_path_2 = straight_line_planner(left_point_start, left_point_target, obstacles, MODE_LEFT, maxDepth - 1, optimize)
+        left_path_3 = straight_line_planner(left_point_target, target, obstacles, MODE_BOTH, maxDepth - 1, optimize)
+
+        test_collision_right = Util.get_first_collision(start, right_point_start, obstacles)
+        if test_collision_right is not None and test_collision_right not in obstacle_group:
+            right_path_1 = straight_line_planner(start, right_point_start, obstacles, MODE_CLOSEST_SIDE, maxDepth - 1, optimize)
+        else:
+            right_path_1 = straight_line_planner(start, right_point_start, obstacles, MODE_BOTH, maxDepth - 1, optimize)
+        right_path_2 = straight_line_planner(right_point_start, right_point_target, obstacles, MODE_RIGHT, maxDepth - 1, optimize)
+        right_path_3 = straight_line_planner(right_point_target, target, obstacles, MODE_BOTH, maxDepth - 1, optimize)
 
         if len(left_path_1) == 0 or len(left_path_2) == 0 or len(left_path_3) == 0:
             if len(right_path_1) == 0 or len(right_path_2) == 0 or len(right_path_3) == 0:
@@ -130,6 +139,16 @@ def straight_line_planner(start, target, obstacles, mode, maxDepth = 100, optimi
                     return get_path_with_fewest_segments(left_path_1 + left_path_2 + left_path_3, right_path_1 + right_path_2 + right_path_3)
                 else:
                     return get_shortest_path(left_path_1 + left_path_2 + left_path_3, right_path_1 + right_path_2 + right_path_3)
+
+    elif mode is MODE_CLOSEST_SIDE:
+        closest_point = Util.closest_point_on_line(Line(start, target), first_collision.origin)
+        closest_point = first_collision.origin + (closest_point - first_collision.origin).norm(first_collision.radius + NEW_POINT_BUFFER)
+        path1 = straight_line_planner(start, closest_point, obstacles, MODE_CLOSEST_SIDE, maxDepth - 1, optimize)
+        path2 = straight_line_planner(closest_point, target, obstacles, MODE_CLOSEST_SIDE, maxDepth - 1, optimize)
+        if len(path1) == 0 or len(path2) == 0:
+            return []
+        else:
+            return path1 + path2
 
     else:
         assert False
@@ -193,7 +212,7 @@ path_fewest_segments = []
 
 try:
     path_shortest_dist = [start_] + straight_line_planner(start_, target_, robots, MODE_BOTH, 20, DIST)
-    path_fewest_segments = [start_] + straight_line_planner(start_, target_, robots, MODE_BOTH, 20, SEG)
+    path_fewest_segments = [start_] #+ straight_line_planner(start_, target_, robots, MODE_BOTH, 20, SEG)
 
     if path_shortest_dist == [start_] or path_fewest_segments == [start_]:
         print("The straight line planner reached its max recursive depth and has failed to plan a full path")

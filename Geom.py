@@ -402,6 +402,7 @@ class Util:
                 if t1 is None and collision is None:
                     t1 = t
                     c1 = p
+                    continue
                 if t1 is not None and collision is None:
                     t2 = t
                     break
